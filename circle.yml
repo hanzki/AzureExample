@@ -16,7 +16,7 @@ dependencies:
   pre:
     - pip install --upgrade setuptools virtualenv
     - pip install ansible
-    - pip install azure==2.0.0rc5
+    - pip install --upgrade azure==2.0.0rc5
     - git config --global user.email "circleci@fundu.fi"
     - git config --global user.name "Circle CI"
 
