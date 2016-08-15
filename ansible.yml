@@ -1,0 +1,40 @@
+---
+- hosts: 127.0.0.1
+  vars:
+    az_subscription_id: 8f4f326f-f8e1-4576-a508-59370ebb76a1
+
+  tasks:
+
+    - name: Create Azure resource group
+      azure_rm_deployment:
+        state: present
+        subscription_id: "{{ az_subscription_id }}"
+        ad_user: "{{ lookup('env','AD_USER') }}"
+        password: "{{ lookup('env','AD_PASS') }}"
+        resource_group_name: circleci-ansible
+        location: northeurope
+        deployment_name: "CircleCI-build-{{ lookup('env','CIRCLE_BUILD_NUM') }}"
+        template: "{{ lookup('file', 'azure_template.json') | from_json }}"
+        parameters:
+          hostingPlanName:
+            value: "CircleCIAnsible"
+          webSiteName:
+            value: "circleciansible"
+          dbServerName:
+            value: "circleciansibledb"
+          dbAdministratorLogin:
+            value: "circleciansible"
+          dbAdministratorLoginPassword:
+            value: "{{ lookup('env','DB_PASS') }}"
+          dbName:
+            value: "AzureTestDb"
+          skuName:
+            value: "B1"
+      register: resgroup
+
+    - name: Clone local git repository of the web app
+      git:
+        repo: "{{ resgroup.deployment.outputs.gitUrl.value }}"
+        dest: ./circleciansible
+
+    - script: deploy.sh

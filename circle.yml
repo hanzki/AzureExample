@@ -1,0 +1,42 @@
+machine:
+  java:
+    version: openjdk8
+  python:
+    version: 2.7.10
+
+dependencies:
+  # Cache the resolution-cache and build streams to speed things up
+  cache_directories:
+    - "~/.sbt"
+    - "target/resolution-cache"
+    - "target/streams"
+    - "project/target/resolution-cache"
+    - "project/target/streams"
+
+  pre:
+    - pip install --upgrade setuptools virtualenv
+    - pip install ansible
+    - pip install azure==2.0.0rc5
+    - git config --global user.email "circleci@fundu.fi"
+    - git config --global user.name "Circle CI"
+
+  override:
+    - sbt test:compile
+
+test:
+  override:
+    - sbt test
+
+  # Copy test reports to Circle test reports dir then package app for deploy
+  post:
+    - mkdir -p $CIRCLE_TEST_REPORTS/junit/
+    - find . -type f -regex ".*/target/test-reports/.*xml" -exec cp {} $CIRCLE_TEST_REPORTS/junit/ \;
+
+deployment:
+  master:
+    branch: master
+    owner: hanzki
+    commands:
+      - sbt war
+      - ansible-playbook ansible.yml -c local -e "ansible_python_interpreter=$(which python)"
+

@@ -1,0 +1,22 @@
+@(entities: Seq[Entity], entityForm: Form[Entity])(implicit messages: Messages)
+
+@import helper._
+
+@main("Welcome to Play") {
+    <ul>
+        @if(entities.isEmpty) {
+            <li>Nothing here</li>
+        }
+        @for(entity <- entities) {
+            <li>#@entity.id = @entity.value</li>
+        }
+    </ul>
+
+    @form(routes.Application.insert){
+        @inputText(entityForm("value"))
+        <input type="submit"/>
+    }
+
+
+
+}
