@@ -1,5 +1,5 @@
 ---
-- hosts: 127.0.0.1
+- hosts: localhost
   vars:
     az_subscription_id: 8f4f326f-f8e1-4576-a508-59370ebb76a1
 
