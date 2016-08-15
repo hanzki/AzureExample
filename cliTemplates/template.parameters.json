@@ -1,0 +1,30 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "hostingPlanName": {
+      "value": "AzureCliTemplate"
+    },
+    "webSiteName": {
+      "value": "azureclitest"
+    },
+    "githubRepoUrl": {
+      "value": "https://github.com/hanzki/AzureExample.git"
+    },
+    "githubRepoBranch": {
+      "value": "master"
+    },
+    "dbServerName": {
+        "value": "azureclitestdb"
+    },
+    "dbAdministratorLogin": {
+        "value": "solinor"
+    },
+    "dbAdministratorLoginPassword": {
+        "value": ""
+    },
+    "dbName": {
+        "value": "AzureTestDb"
+    }
+  }
+}

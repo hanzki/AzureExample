@@ -1,0 +1,217 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "hostingPlanName": {
+      "type": "string",
+      "minLength": 1,
+      "metadata": {
+        "description": "Name of the hosting plan to use in Azure."
+      }
+    },
+    "webSiteName": {
+      "type": "string",
+      "minLength": 1,
+      "metadata": {
+        "description": "Name of the Azure API app to create."
+      }
+    },
+    "githubRepoUrl": {
+      "type": "string",
+      "minLength": 1,
+      "metadata": {
+        "description": "Github repository url"
+      }
+    },
+    "githubRepoBranch": {
+      "type": "string",
+      "minLength": 1,
+      "metadata": {
+        "description": "Github repository branch"
+      }
+    },
+    "dbServerName": {
+      "type": "string",
+      "metadata": {
+        "description": "SQL Azure DB Server name"
+      }
+    },
+    "dbAdministratorLogin": {
+      "type": "string",
+      "metadata": {
+        "description": "SQL Azure DB administrator  user login"
+      }
+    },
+    "dbAdministratorLoginPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Database admin user password"
+      }
+    },
+    "dbName": {
+      "type": "string",
+      "metadata": {
+        "description": "Database Name"
+      }
+    },
+    "dbEdition": {
+      "type": "string",
+      "allowedValues": [
+        "Basic",
+        "Standard",
+        "Premium"
+      ],
+      "defaultValue": "Standard",
+      "metadata": {
+        "description": "SQL DB appServiceTier : Basic,Standard,Premium"
+      }
+    },
+    "skuName": {
+      "type": "string",
+      "defaultValue": "F1",
+      "allowedValues": [
+        "F1",
+        "D1",
+        "B1",
+        "B2",
+        "B3",
+        "S1",
+        "S2",
+        "S3",
+        "P1",
+        "P2",
+        "P3",
+        "P4"
+      ],
+      "metadata": {
+        "description": "Describes plan's pricing tier and instance size. Check details at https://azure.microsoft.com/en-us/pricing/details/app-service/"
+      }
+    },
+    "skuCapacity": {
+      "type": "int",
+      "defaultValue": 1,
+      "minValue": 1,
+      "metadata": {
+        "description": "Describes plan's instance count"
+      }
+    }
+  },
+  "resources": [
+    {
+      "name": "[parameters('dbServerName')]",
+      "type": "Microsoft.Sql/servers",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2014-04-01-preview",
+      "properties": {
+        "administratorLogin": "[parameters('dbAdministratorLogin')]",
+        "administratorLoginPassword": "[parameters('dbAdministratorLoginPassword')]",
+        "version": "12.0"
+      },
+      "resources": [
+        {
+          "apiVersion": "2014-04-01-preview",
+          "name": "[parameters('dbName')]",
+          "type": "databases",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Sql/servers/', parameters('dbServerName'))]"
+          ],
+          "properties": {
+            "edition": "[parameters('dbEdition')]",
+            "collation": "SQL_Latin1_General_CP1_CI_AS",
+            "requestedServiceObjectiveName": "S1"
+          }
+        },
+        {
+          "apiVersion": "2014-04-01-preview",
+          "name": "AllowAllWindowsAzureIps",
+          "type": "firewallrules",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[concat('Microsoft.Sql/servers/', parameters('dbServerName'))]"
+          ],
+          "properties": {
+            "endIpAddress": "0.0.0.0",
+            "startIpAddress": "0.0.0.0"
+          }
+        }
+      ]
+    },
+    {
+      "apiVersion": "2015-08-01",
+      "name": "[parameters('hostingPlanName')]",
+      "type": "Microsoft.Web/serverfarms",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "displayName": "HostingPlan"
+      },
+      "sku": {
+        "name": "[parameters('skuName')]",
+        "capacity": "[parameters('skuCapacity')]"
+      },
+      "properties": {
+        "name": "[parameters('hostingPlanName')]"
+      }
+    },
+    {
+      "apiVersion": "2015-08-01",
+      "name": "[parameters('webSiteName')]",
+      "type": "Microsoft.Web/sites",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "[concat('hidden-related:', resourceGroup().id, '/providers/Microsoft.Web/serverfarms/', parameters('hostingPlanName'))]": "Resource",
+        "displayName": "Website"
+      },
+      "dependsOn": [
+        "[concat('Microsoft.Web/serverfarms/', parameters('hostingPlanName'))]"
+      ],
+      "properties": {
+        "name": "[parameters('webSiteName')]",
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('hostingPlanName'))]"
+      },
+      "resources": [
+        {
+          "apiVersion": "2015-08-01",
+          "name": "web",
+          "type": "config",
+          "dependsOn": [
+            "[concat('Microsoft.Web/sites/', parameters('webSiteName'))]"
+          ],
+          "properties": {
+            "javaVersion": "1.8",
+            "javaContainer": "TOMCAT",
+            "javaContainerVersion": "8.0"
+          }
+        },
+        {
+          "apiVersion": "2015-08-01",
+          "name": "appsettings",
+          "type": "config",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/Sites', parameters('webSiteName'))]",
+            "[resourceId('Microsoft.Sql/servers/databases', parameters('dbServerName'), parameters('dbName'))]"
+          ],
+          "properties": {
+            "MSSQL_URL": "[concat('jdbc:sqlserver://', reference(parameters('dbServerName')).fullyQualifiedDomainName, ':1433;database=', parameters('dbName'))]",
+            "MSSQL_USER": "[concat(parameters('dbAdministratorLogin'), '@', parameters('dbServerName'))]",
+            "MSSQL_PASS": "[parameters('dbAdministratorLoginPassword')]"
+          }
+        },
+        {
+          "apiVersion": "2015-08-01",
+          "name": "web",
+          "type": "sourcecontrols",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/Sites', parameters('webSiteName'))]",
+            "[resourceId('Microsoft.Web/sites/config', parameters('webSiteName'), 'appsettings')]",
+            "[resourceId('Microsoft.Web/sites/config', parameters('webSiteName'), 'web')]"
+          ],
+          "properties": {
+            "repoUrl": "[parameters('githubRepoUrl')]",
+            "branch": "[parameters('githubRepoBranch')]"
+          }
+        }
+      ]
+    }
+  ]
+}
